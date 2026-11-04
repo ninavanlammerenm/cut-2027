@@ -122,4 +122,109 @@ test('vezels als bereik 30–35', function () {
   assert.strictEqual(L.goalProgress(undefined, g).status, 'empty');
 });
 
+console.log('Bijsturingsregel');
+// Twee weken: week 1 op 'a', week 2 op 'b' (elke dag een meting)
+function twoWeeks(a, b) {
+  var pairs = [];
+  for (var i = 0; i < 7; i++) pairs.push([L.addDays('2027-01-01', i), a]);
+  for (var j = 0; j < 7; j++) pairs.push([L.addDays('2027-01-08', j), b]);
+  return L.weightSeries(days(pairs));
+}
+test('minder dan 10 metingen: niet genoeg data', function () {
+  var s = L.weightSeries(days([['2027-01-01', 70], ['2027-01-05', 69.8], ['2027-01-09', 69.6], ['2027-01-14', 69.3]]));
+  assert.strictEqual(L.adjustmentAdvice(s, '2027-01-14').status, 'insufficient');
+  assert.strictEqual(L.checkDate(s, '2027-01-14'), null);
+});
+test('daling 0,4 kg/week: op koers', function () {
+  var a = L.adjustmentAdvice(twoWeeks(70, 69.6), '2027-01-14');
+  assert.strictEqual(a.status, 'on_track');
+  near(a.rate, 0.4);
+});
+test('grenzen: 0,3 en 0,5 zijn op koers', function () {
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.7), '2027-01-14').status, 'on_track');
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.5), '2027-01-14').status, 'on_track');
+});
+test('daling 0,2 kg/week: te langzaam', function () {
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.8), '2027-01-14').status, 'too_slow');
+});
+test('stijging: ook te langzaam', function () {
+  var a = L.adjustmentAdvice(twoWeeks(70, 70.3), '2027-01-14');
+  assert.strictEqual(a.status, 'too_slow');
+  near(a.rate, -0.3);
+});
+test('daling 0,6 kg/week: iets snel, tussen de regels in', function () {
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.4), '2027-01-14').status, 'bit_fast');
+});
+test('daling 0,7 is nog niet te snel, 0,8 wel', function () {
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.3), '2027-01-14').status, 'bit_fast');
+  assert.strictEqual(L.adjustmentAdvice(twoWeeks(70, 69.2), '2027-01-14').status, 'too_fast');
+});
+test('genoeg metingen maar vorige week bijna leeg: niet genoeg data', function () {
+  var pairs = [['2027-01-01', 70]];
+  for (var j = 0; j < 7; j++) pairs.push([L.addDays('2027-01-08', j), 69.6]);
+  pairs.push(['2026-12-20', 70.5], ['2026-12-22', 70.4], ['2026-12-24', 70.3]);
+  var a = L.adjustmentAdvice(L.weightSeries(days(pairs)), '2027-01-14');
+  assert.strictEqual(a.status, 'insufficient');
+});
+test('checkmomenten: eerste na twee weken, daarna elke 14 dagen', function () {
+  var pairs = [];
+  for (var i = 0; i < 60; i++) pairs.push([L.addDays('2027-01-01', i), 70 - i * 0.05]);
+  var s = L.weightSeries(days(pairs));
+  assert.strictEqual(L.checkDate(s, '2027-01-13'), null);
+  assert.strictEqual(L.checkDate(s, '2027-01-14'), '2027-01-14');
+  assert.strictEqual(L.checkDate(s, '2027-01-27'), '2027-01-14');
+  assert.strictEqual(L.checkDate(s, '2027-01-28'), '2027-01-28');
+  assert.strictEqual(L.nextCheckDate(s, '2027-01-20'), '2027-01-28');
+});
+test('checkmoment schuift op als de 10e meting later komt', function () {
+  var pairs = [];
+  for (var i = 0; i < 10; i++) pairs.push([L.addDays('2027-01-01', i * 2), 70]); // 10e op 19 jan
+  var s = L.weightSeries(days(pairs));
+  assert.strictEqual(L.checkDate(s, '2027-01-18'), null);
+  assert.strictEqual(L.checkDate(s, '2027-01-19'), '2027-01-19');
+});
+
+console.log('Metingen');
+test('verschil sinds eerste en vorige meting', function () {
+  var list = [
+    { date: '2027-01-15', waist: 74 },
+    { date: '2027-01-01', waist: 76, hips: 100 },
+    { date: '2027-01-29', waist: 73.5, hips: 99 }
+  ];
+  var st = L.measurementStats(list, 'waist');
+  near(st.latest.value, 73.5);
+  near(st.sinceFirst, -2.5);
+  near(st.sincePrev, -0.5);
+  var hips = L.measurementStats(list, 'hips');
+  near(hips.sincePrev, -1); // de middelste meting had geen heup
+});
+test('één meting: geen verschillen; geen meting: alles leeg', function () {
+  assert.strictEqual(L.measurementStats([{ date: '2027-01-01', waist: 76 }], 'waist').sinceFirst, null);
+  assert.strictEqual(L.measurementStats([], 'waist').latest, null);
+  assert.strictEqual(L.daysSinceLast([], '2027-01-01'), null);
+  assert.strictEqual(L.daysSinceLast([{ date: '2027-01-01' }, { date: '2027-01-10' }], '2027-01-25'), 15);
+});
+
+console.log('Kracht');
+test('score: gewicht met herhalingen, of alleen herhalingen', function () {
+  near(L.setScore({ weight: 60, reps: 10 }), 80);
+  near(L.setScore({ reps: 15 }), 15);
+  assert.strictEqual(L.setScore({}), null);
+});
+test('trend omhoog, gelijk en omlaag', function () {
+  var base = [{ date: '2027-01-01', weight: 50, reps: 10 }, { date: '2027-01-05', weight: 50, reps: 10 }];
+  assert.strictEqual(L.strengthTrend(base.concat({ date: '2027-01-09', weight: 52.5, reps: 10 })).trend, 'up');
+  assert.strictEqual(L.strengthTrend(base.concat({ date: '2027-01-09', weight: 50, reps: 10 })).trend, 'same');
+  assert.strictEqual(L.strengthTrend(base.concat({ date: '2027-01-09', weight: 45, reps: 10 })).trend, 'down');
+  assert.strictEqual(L.strengthTrend(base.slice(0, 1)).trend, 'new');
+});
+test('waarschuwing pas bij twee of meer dalende oefeningen', function () {
+  var down = { trend: 'down', lastDate: '2027-01-09' };
+  var up = { trend: 'up', lastDate: '2027-01-09' };
+  assert.strictEqual(L.strengthWarning({ a: down, b: up }, '2027-01-10').warn, false);
+  assert.strictEqual(L.strengthWarning({ a: down, b: down }, '2027-01-10').warn, true);
+  // oude oefening telt niet mee
+  assert.strictEqual(L.strengthWarning({ a: down, b: { trend: 'down', lastDate: '2026-10-01' } }, '2027-01-10').warn, false);
+});
+
 console.log('\n' + passed + ' tests geslaagd' + (process.exitCode ? ', maar er zijn fouten' : ''));

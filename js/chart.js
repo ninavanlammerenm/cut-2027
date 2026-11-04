@@ -130,5 +130,29 @@
     }
   }
 
-  root.Chart = { draw: draw, shortDate: shortDate };
+  /*
+   * Kleine lijngrafiek zonder assen, voor metingen en oefeningen.
+   * points: [{date, value}]. x volgt de datum, zodat gaten zichtbaar blijven.
+   */
+  function spark(container, points, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    if (!points || points.length < 2) return;
+    var W = opts.width || 110, H = opts.height || 40, p = 5;
+    var x0 = points[0].date, span = Math.max(1, Logic.daysBetween(x0, points[points.length - 1].date));
+    var vals = points.map(function (q) { return q.value; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (hi - lo < (opts.minRange || 1)) { var m = (hi + lo) / 2, r = (opts.minRange || 1) / 2; lo = m - r; hi = m + r; }
+    function X(k) { return p + (Logic.daysBetween(x0, k) / span) * (W - 2 * p); }
+    function Y(v) { return p + (1 - (v - lo) / (hi - lo)) * (H - 2 * p); }
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H, class: 'spark', 'aria-hidden': 'true' }, container);
+    el('path', {
+      d: points.map(function (q, i) { return (i ? 'L' : 'M') + X(q.date).toFixed(1) + ' ' + Y(q.value).toFixed(1); }).join(' '),
+      class: 'spark-line'
+    }, svg);
+    var last = points[points.length - 1];
+    el('circle', { cx: X(last.date), cy: Y(last.value), r: 3, class: 'spark-end' }, svg);
+  }
+
+  root.Chart = { draw: draw, spark: spark, shortDate: shortDate };
 })(this);

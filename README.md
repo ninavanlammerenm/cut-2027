@@ -6,15 +6,26 @@ Gewone HTML, CSS en JavaScript, zonder framework en zonder build-stap. De gegeve
 ## Schermen
 
 - **Vandaag**: gewicht, kcal, eiwit, vezels, stappen, training en de vlag "gegeten bij vriend". Ook eerdere dagen kun je aanpassen.
-- **Gewicht**: een grafiek met de losse metingen en het 7-daags gemiddelde, plus het weekgemiddelde en het verschil met vorige week.
-- Bijsturing, Metingen, Training en Instellingen: komen nog.
+- **Gewicht**: een grafiek met de losse metingen en het 7-daags gemiddelde, plus het weekgemiddelde, het verschil met vorige week, wat je sinds de start kwijt bent en wat er nog te gaan is.
+- **Bijsturing**: elke 2 weken vergelijkt de app het gemiddelde van de laatste 7 dagen met de 7 dagen daarvoor. Je krijgt dan advies, met een knop om je kcal-doel aan te passen.
+- **Metingen**: taille, heupen, bovenbeen, bovenarm en borst. Per meetpunt zie je het verschil en een kleine grafiek, en je krijgt een herinnering als je meer dan 14 dagen niet gemeten hebt.
+- **Training**: het weekschema, per oefening de waarde van de vorige keer, de trend in je kracht en een waarschuwing als je kracht bij meerdere oefeningen daalt. Oefeningen kun je toevoegen, hernoemen en verwijderen.
+- **Instellingen** (tandwiel rechtsboven): doelen, streefgewicht, weekschema, export, import en alles wissen.
+
+## Regels aanpassen
+
+Alle drempels staan bovenaan de blokken in `js/logic.js`:
+- `ADJUST_RULES`: de bijsturingsregel (0,3 / 0,5 / 0,7 kg per week, minimaal 10 metingen, elke 14 dagen)
+- `STRENGTH_RULES`: de krachttrend (vergelijking met de laatste 3 sessies, waarschuwing bij 2 dalende oefeningen)
+
+Pas je daar iets aan, draai dan de tests opnieuw.
 
 ## Structuur
 
 ```
 index.html          pagina en tabbalk
 css/style.css       opmaak
-js/logic.js         rekenregels (gemiddelden, weekverschil, dagdoelen), geen DOM
+js/logic.js         rekenregels (gemiddelden, bijsturing, metingen, kracht), geen DOM
 js/store.js         opslag in localStorage + standaardwaarden
 js/chart.js         eigen SVG-grafiek
 js/app.js           navigatie en gedeelde hulpjes
@@ -49,4 +60,4 @@ Tip: open die link op je telefoon en kies **Zet op beginscherm**. Dan opent de a
 
 ## Backup
 
-De gegevens staan alleen op het apparaat en in de browser waarin je de app gebruikt. Wis je de browsergegevens, dan ben je ze kwijt. In Instellingen komt een knop om alles te exporteren en te importeren als JSON.
+De gegevens staan alleen op het apparaat en in de browser waarin je de app gebruikt. Wis je de browsergegevens, dan ben je ze kwijt. Via **Instellingen → Backup** exporteer je alles als JSON-bestand, en daar zet je het later ook weer terug. Doe dat af en toe.

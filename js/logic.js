@@ -166,7 +166,172 @@
     return { pct: pct, status: status };
   }
 
+  // ---------- Bijsturing ----------
+
+  /*
+   * Alle drempels voor de bijsturingsregel op één plek.
+   * Snelheden in kg per week (positief = afvallen).
+   */
+  var ADJUST_RULES = {
+    minMeasurements: 10,   // minder dan dit: nog niet genoeg data
+    minPerWindow: 3,       // minimaal aantal metingen per 7-dagenvenster
+    intervalDays: 14,      // elke 2 weken een check
+    onTrackMin: 0.3,       // 0,3 – 0,5: op koers
+    onTrackMax: 0.5,
+    tooFast: 0.7,          // meer dan 0,7: te snel
+    kcalDown: [150, 200],  // voorgestelde verlaging
+    kcalUp: 150            // voorgestelde verhoging bij te snel
+  };
+
+  /*
+   * Datum van de meest recente check op of voor refKey, of null.
+   * De eerste check valt op de dag dat er 10 metingen zijn, maar niet
+   * eerder dan 13 dagen na de eerste meting (dan zijn er twee volle weken).
+   * Daarna elke 14 dagen.
+   */
+  function checkDate(series, refKey, rules) {
+    rules = rules || ADJUST_RULES;
+    var upto = series.filter(function (p) { return p.date <= refKey; });
+    if (upto.length < rules.minMeasurements) return null;
+    var tenth = upto[rules.minMeasurements - 1].date;
+    var twoWeeks = addDays(upto[0].date, 13);
+    var first = tenth > twoWeeks ? tenth : twoWeeks;
+    if (first > refKey) return null;
+    var k = Math.floor(daysBetween(first, refKey) / rules.intervalDays);
+    return addDays(first, k * rules.intervalDays);
+  }
+
+  function nextCheckDate(series, refKey, rules) {
+    rules = rules || ADJUST_RULES;
+    var last = checkDate(series, refKey, rules);
+    if (last) return addDays(last, rules.intervalDays);
+    var upto = series.filter(function (p) { return p.date <= refKey; });
+    if (!upto.length) return null;
+    var twoWeeks = addDays(upto[0].date, 13);
+    return twoWeeks > refKey ? twoWeeks : null; // null: wacht op meer metingen
+  }
+
+  /*
+   * De regel zelf: gemiddelde laatste 7 dagen t/m checkKey tegenover de 7 dagen daarvoor.
+   * status: 'insufficient' | 'too_slow' | 'on_track' | 'bit_fast' | 'too_fast'
+   * 'bit_fast' (0,5 – 0,7 kg/week) zit tussen de opgegeven regels in: prima, wel in de gaten houden.
+   */
+  function adjustmentAdvice(series, checkKey, rules) {
+    rules = rules || ADJUST_RULES;
+    var upto = series.filter(function (p) { return p.date <= checkKey; });
+    var cmp = weekComparison(upto, checkKey);
+    var res = {
+      status: 'insufficient', count: upto.length, rate: null,
+      current: cmp.current.avg, previous: cmp.previous.avg,
+      currentN: cmp.current.n, previousN: cmp.previous.n, checkKey: checkKey
+    };
+    if (upto.length < rules.minMeasurements) return res;
+    if (cmp.current.n < rules.minPerWindow || cmp.previous.n < rules.minPerWindow) return res;
+    // afronden op 2 decimalen zodat 0,3 niet door floating point 0,29999 wordt
+    var rate = Math.round((cmp.previous.avg - cmp.current.avg) * 100) / 100;
+    res.rate = rate;
+    if (rate > rules.tooFast) res.status = 'too_fast';
+    else if (rate > rules.onTrackMax) res.status = 'bit_fast';
+    else if (rate >= rules.onTrackMin) res.status = 'on_track';
+    else res.status = 'too_slow';
+    return res;
+  }
+
+  // ---------- Metingen ----------
+
+  /*
+   * Voor één meetpunt (bijv. 'waist'): laatste waarde, verschil met eerste en vorige.
+   * list: [{date, waist, hips, ...}] in willekeurige volgorde.
+   */
+  function measurementStats(list, field) {
+    var pts = (list || []).filter(function (m) { return typeof m[field] === 'number'; })
+      .map(function (m) { return { date: m.date, value: m[field] }; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var n = pts.length;
+    var latest = n ? pts[n - 1] : null;
+    return {
+      series: pts,
+      latest: latest,
+      sinceFirst: n > 1 ? latest.value - pts[0].value : null,
+      sincePrev: n > 1 ? latest.value - pts[n - 2].value : null
+    };
+  }
+
+  // Dagen sinds de laatste meting, of null als er nog geen is.
+  function daysSinceLast(list, refKey) {
+    if (!list || !list.length) return null;
+    var last = list.reduce(function (m, x) { return x.date > m ? x.date : m; }, list[0].date);
+    return daysBetween(last, refKey);
+  }
+
+  // ---------- Kracht ----------
+
+  var STRENGTH_RULES = {
+    compareWith: 3,    // laatste sessie vergelijken met gemiddelde van max. 3 sessies ervoor
+    upPct: 1,          // meer dan +1% = omhoog
+    downPct: -3,       // meer dan 3% lager = omlaag
+    warnCount: 2,      // waarschuwing bij zoveel oefeningen die dalen
+    recentDays: 42     // alleen oefeningen meetellen die in de laatste 6 weken gedaan zijn
+  };
+
+  /*
+   * Eén getal per sessie om te vergelijken: geschatte 1RM (Epley),
+   * gewicht × (1 + herhalingen/30). Zonder gewicht (band, lichaamsgewicht): herhalingen.
+   * Aantal sets telt niet mee; dat is volume, geen kracht.
+   */
+  function setScore(e) {
+    if (!e) return null;
+    var w = typeof e.weight === 'number' ? e.weight : 0;
+    var r = typeof e.reps === 'number' ? e.reps : 0;
+    if (w > 0 && r > 0) return w * (1 + r / 30);
+    if (w > 0) return w;
+    if (r > 0) return r;
+    return null;
+  }
+
+  /*
+   * history: [{date, weight, reps, sets}] (willekeurige volgorde)
+   * trend: 'up' | 'same' | 'down' | 'new'
+   */
+  function strengthTrend(history, rules) {
+    rules = rules || STRENGTH_RULES;
+    var h = (history || []).map(function (e) { return { date: e.date, score: setScore(e) }; })
+      .filter(function (e) { return e.score !== null; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    if (h.length < 2) return { trend: 'new', pct: null, scores: h };
+    var last = h[h.length - 1].score;
+    var prev = h.slice(Math.max(0, h.length - 1 - rules.compareWith), h.length - 1)
+      .map(function (e) { return e.score; });
+    var base = mean(prev);
+    var pct = Math.round(((last - base) / base) * 1000) / 10;
+    var trend = pct > rules.upPct ? 'up' : (pct < rules.downPct ? 'down' : 'same');
+    return { trend: trend, pct: pct, scores: h, lastDate: h[h.length - 1].date };
+  }
+
+  /*
+   * trends: { exId: strengthTrend(...) }
+   * Geeft { warn, down: [exId...] } — warn als meerdere recente oefeningen dalen.
+   */
+  function strengthWarning(trends, refKey, rules) {
+    rules = rules || STRENGTH_RULES;
+    var down = Object.keys(trends || {}).filter(function (id) {
+      var t = trends[id];
+      return t.trend === 'down' && (!refKey || daysBetween(t.lastDate, refKey) <= rules.recentDays);
+    });
+    return { warn: down.length >= rules.warnCount, down: down };
+  }
+
   var Logic = {
+    ADJUST_RULES: ADJUST_RULES,
+    STRENGTH_RULES: STRENGTH_RULES,
+    checkDate: checkDate,
+    nextCheckDate: nextCheckDate,
+    adjustmentAdvice: adjustmentAdvice,
+    measurementStats: measurementStats,
+    daysSinceLast: daysSinceLast,
+    setScore: setScore,
+    strengthTrend: strengthTrend,
+    strengthWarning: strengthWarning,
     dateKey: dateKey,
     parseKey: parseKey,
     todayKey: todayKey,

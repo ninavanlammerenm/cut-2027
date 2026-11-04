@@ -77,20 +77,29 @@
     }
   };
 
-  // Placeholder voor schermen die nog komen
-  function soon(title) {
-    return {
-      title: title,
-      render: function (el) {
-        el.innerHTML = '<section class="card empty"><h2>' + title + '</h2>' +
-          '<p class="muted">Dit scherm komt in de volgende stap.</p></section>';
-      }
-    };
-  }
-  App.views.bijsturing = soon('Bijsturing');
-  App.views.metingen = soon('Metingen');
-  App.views.training = soon('Training');
-  App.views.instellingen = soon('Instellingen');
+  // Krachttrend over alle oefeningen, voor Training en Bijsturing
+  App.strengthTrends = function () {
+    var out = {};
+    Store.load().exercises.forEach(function (e) { out[e.id] = Logic.strengthTrend(Store.history(e.id)); });
+    return out;
+  };
+  App.strengthWarning = function () {
+    var trends = App.strengthTrends();
+    var w = Logic.strengthWarning(trends, Logic.todayKey());
+    var byId = {};
+    Store.load().exercises.forEach(function (e) { byId[e.id] = e.name; });
+    w.names = w.down.map(function (id) { return byId[id]; });
+    w.trends = trends;
+    return w;
+  };
+
+  // Index in het weekschema (0 = maandag)
+  App.weekdayIndex = function (key) { return (Logic.parseKey(key).getDay() + 6) % 7; };
+  App.WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+  App.typeLabel = function (id) {
+    var t = Store.DAY_TYPES.filter(function (x) { return x.id === id; })[0];
+    return t ? t.label : id;
+  };
 
   window.addEventListener('hashchange', function () { App.render(); });
 

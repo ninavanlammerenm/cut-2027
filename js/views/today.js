@@ -127,7 +127,8 @@
         '</div>' +
 
         '<div class="field">' +
-          '<span class="field-label">Training gedaan</span>' +
+          '<span class="field-label">Training gedaan <span class="muted">· schema: ' +
+            App.typeLabel(Store.settings().schedule[App.weekdayIndex(selected)]).toLowerCase() + '</span></span>' +
           '<div class="segmented" role="group" aria-label="Training gedaan">' +
             '<button data-trained="yes" class="' + (day.trained === true ? 'on' : '') + '" aria-pressed="' + (day.trained === true) + '">Ja</button>' +
             '<button data-trained="no" class="' + (day.trained === false ? 'on' : '') + '" aria-pressed="' + (day.trained === false) + '">Nee</button>' +
