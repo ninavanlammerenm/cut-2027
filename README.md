@@ -5,7 +5,7 @@ Gewone HTML, CSS en JavaScript, zonder framework en zonder build-stap. De gegeve
 
 ## Schermen
 
-- **Vandaag**: gewicht, kcal, eiwit, vezels, stappen, training en de vlag "gegeten bij vriend". Ook eerdere dagen kun je aanpassen.
+- **Vandaag**: gewicht, kcal, eiwit, vezels, stappen, training en de vlag "buiten gegeten". Ook eerdere dagen kun je aanpassen.
 - **Gewicht**: een grafiek met de losse metingen en het 7-daags gemiddelde, plus het weekgemiddelde, het verschil met vorige week, wat je sinds de start kwijt bent en wat er nog te gaan is.
 - **Bijsturing**: elke 2 weken vergelijkt de app het gemiddelde van de laatste 7 dagen met de 7 dagen daarvoor. Je krijgt dan advies, met een knop om je kcal-doel aan te passen.
 - **Metingen**: taille, heupen, bovenbeen, bovenarm en borst. Per meetpunt zie je het verschil en een kleine grafiek, en je krijgt een herinnering als je meer dan 14 dagen niet gemeten hebt.

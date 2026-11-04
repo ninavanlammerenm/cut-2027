@@ -54,7 +54,7 @@
         // maandag t/m zondag
         schedule: ['benen', 'kickboksen', 'boven', 'rust', 'benen', 'kickboksen', 'rust']
       },
-      // 'YYYY-MM-DD' -> { weight, kcal, protein, fiber, steps, trained, atFriend }
+      // 'YYYY-MM-DD' -> { weight, kcal, protein, fiber, steps, trained, ateOut }
       days: {},
       // [{ id, date, waist, hips, thigh, arm, chest }]
       measurements: [],
@@ -74,6 +74,14 @@
     out.settings = Object.assign({}, d.settings, data.settings || {});
     if (!Array.isArray(out.settings.schedule) || out.settings.schedule.length !== 7) out.settings.schedule = d.settings.schedule;
     out.days = isObj(data.days) ? data.days : {};
+    // oude naam 'atFriend' (gegeten bij vriend) heet nu 'ateOut' (buiten gegeten)
+    Object.keys(out.days).forEach(function (k) {
+      var day = out.days[k];
+      if (day && 'atFriend' in day) {
+        if (day.atFriend) day.ateOut = true;
+        delete day.atFriend;
+      }
+    });
     out.logs = isObj(data.logs) ? data.logs : {};
     out.measurements = Array.isArray(data.measurements) ? data.measurements : [];
     out.exercises = Array.isArray(data.exercises) ? data.exercises : d.exercises;
@@ -114,7 +122,7 @@
     var day = Object.assign({}, data.days[key] || {});
     Object.keys(fields).forEach(function (f) {
       var v = fields[f];
-      if (v === null || v === undefined || (v === false && f === 'atFriend')) delete day[f];
+      if (v === null || v === undefined || (v === false && f === 'ateOut')) delete day[f];
       else day[f] = v;
     });
     if (Object.keys(day).length) data.days[key] = day;

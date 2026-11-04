@@ -12,7 +12,7 @@
     },
     too_slow: {
       title: 'Gemiddelde daalt te langzaam, ga 150 tot 200 kcal omlaag',
-      body: 'Kijk ook even of je kcal-schattingen kloppen, vooral op dagen bij je vriend.',
+      body: 'Kijk ook even of je kcal-schattingen kloppen, vooral op dagen dat je buiten hebt gegeten.',
       cls: 'warn'
     },
     bit_fast: {

@@ -230,7 +230,7 @@ p { margin: 0; }
 .recent-tags { grid-column: 2; grid-row: 1; display: flex; gap: 6px; }
 .tag { font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .tag-train { background: var(--sage-light); color: #5E8466; }
-.tag-friend { background: #FCEBDD; color: #B07656; }
+.tag-out { background: #FCEBDD; color: #B07656; }
 
 /* ---------- Gewicht ---------- */
 

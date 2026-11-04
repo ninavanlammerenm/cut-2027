@@ -78,7 +78,7 @@
       if (d.protein !== undefined) bits.push(App.fmt(d.protein) + ' g eiwit');
       var tags = '';
       if (d.trained === true) tags += '<span class="tag tag-train">training</span>';
-      if (d.atFriend) tags += '<span class="tag tag-friend">bij vriend</span>';
+      if (d.ateOut) tags += '<span class="tag tag-out">buiten gegeten</span>';
       return '<button class="recent-row' + (k === selected ? ' is-selected' : '') + '" data-day="' + k + '">' +
         '<span class="recent-date">' + App.dayLabel(k) + '</span>' +
         '<span class="recent-info">' + (bits.join(' · ') || '<span class="muted">alleen vlaggen</span>') + '</span>' +
@@ -136,9 +136,9 @@
         '</div>' +
 
         '<label class="switch-row">' +
-          '<span><span class="field-label">Gegeten bij vriend</span>' +
+          '<span><span class="field-label">Buiten gegeten</span>' +
           '<span class="muted small">Kcal is die dag een schatting</span></span>' +
-          '<input type="checkbox" class="switch" data-friend' + (day.atFriend ? ' checked' : '') + '>' +
+          '<input type="checkbox" class="switch" data-out' + (day.ateOut ? ' checked' : '') + '>' +
         '</label>' +
       '</section>' +
 
@@ -206,8 +206,8 @@
       });
     });
 
-    el.querySelector('[data-friend]').addEventListener('change', function (e) {
-      Store.updateDay(selected, { atFriend: e.target.checked });
+    el.querySelector('[data-out]').addEventListener('change', function (e) {
+      Store.updateDay(selected, { ateOut: e.target.checked });
       renderRecent(recentBox);
       App.toast('Opgeslagen');
     });
